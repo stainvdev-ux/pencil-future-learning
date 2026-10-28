@@ -8,4 +8,6 @@ export const refineryState = {
   dusk: 0, // day → dusk: lamps, windows and flare come on
   cam: 0, // camera keyframe position, 0 → CAMERA_KEYS.length - 1
   labels: 0, // equipment tags
+  truck: 0, // tanker progress along its route, 0 → 1
+  side: 0, // 1 = camera rides alongside the truck, 0 = camera on its keyframe path
 };

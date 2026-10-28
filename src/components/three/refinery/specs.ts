@@ -19,6 +19,8 @@ export type SceneSpec = {
   fog: { near: number; far: number; duskNear: number };
   sky: number;
   ao: number;
+  /** a tanker driving north along x from z0 to z1 */
+  truck?: { x: number; z0: number; z1: number };
 };
 
 /** Pencil's planned miniature industrial learning facility. */
@@ -52,11 +54,12 @@ export const refineryComplex: SceneSpec = {
     { p: [5, 560, 130], t: [5, 0, -5] },
     { p: [310, 210, 330], t: [0, 10, -10] },
     { p: [-240, 60, 235], t: [0, 18, -25] },
-    { p: [52, 9, 165], t: [22, 30, -45] },
+    { p: [-14, 7, 150], t: [32, 22, -40] },
   ],
   sun: [-420, 230, 300],
   shadowExtent: 240,
   fog: { near: 320, far: 1400, duskNear: 180 },
   sky: 1800,
   ao: 7,
+  truck: { x: 17, z0: 560, z1: 95 },
 };

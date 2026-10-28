@@ -1,0 +1,218 @@
+/* ---------- header ---------- */
+.site-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 16px var(--margin);
+  background: var(--paper);
+  color: var(--ink);
+  transition: color 0.4s ease, background-color 0.4s ease;
+}
+
+:root[data-scene="dark"] .site-header {
+  background: var(--indigo);
+  color: var(--paper);
+}
+
+.site-logo span {
+  display: block;
+  width: 84px;
+  height: 35px;
+  background: currentColor;
+  mask: url("/brand/pencil-wordmark.png") center / contain no-repeat;
+  -webkit-mask: url("/brand/pencil-wordmark.png") center / contain no-repeat;
+}
+
+.site-header nav {
+  margin-left: auto;
+}
+
+.site-header ul {
+  display: flex;
+  gap: 28px;
+  list-style: none;
+}
+
+.site-header nav a {
+  font-size: 1rem;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+  transition: text-decoration-color 0.25s ease, text-underline-offset 0.25s ease;
+}
+
+.site-header nav a:hover,
+.site-header nav a:focus-visible {
+  text-decoration-color: var(--orange);
+  text-underline-offset: 4px;
+}
+
+.site-action {
+  padding: 12px 20px;
+  background: var(--orange);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.site-action:hover {
+  background: var(--paper);
+}
+
+.site-action:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 900px) {
+  .site-header nav {
+    display: none;
+  }
+  .site-action {
+    margin-left: auto;
+  }
+}
+
+/* ---------- journey ---------- */
+.journey {
+  position: relative;
+  height: 100svh;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.journey-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.journey-caption {
+  position: absolute;
+  left: var(--margin);
+  bottom: var(--margin);
+  max-width: 36rem;
+  z-index: 50;
+  color: var(--ink);
+  pointer-events: none;
+}
+
+.journey-caption[data-in]:not([data-in="0"]) {
+  visibility: hidden;
+}
+
+.journey-caption.is-hero {
+  top: clamp(96px, 16svh, 168px);
+  bottom: auto;
+  max-width: none;
+  pointer-events: auto;
+}
+
+.journey-caption.is-hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(3.4rem, 9.6vw, 10rem);
+  line-height: 0.88;
+  letter-spacing: -0.04em;
+}
+
+.journey-caption.is-hero p {
+  max-width: 30rem;
+  margin-top: 32px;
+  font-size: 1.1875rem;
+  line-height: 1.5;
+}
+
+.journey-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.button {
+  display: inline-block;
+  padding: 16px 24px;
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.button.is-primary {
+  background: var(--orange);
+  color: var(--ink);
+}
+
+.button:hover {
+  background: var(--indigo);
+  color: var(--paper);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.journey-caption.is-panel {
+  padding: clamp(20px, 2.4vw, 36px);
+  background: var(--paper);
+}
+
+.journey-caption.is-dark {
+  background: var(--indigo);
+  color: var(--paper);
+}
+
+.journey-caption h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.5rem, 5.4vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+
+.journey-caption .statement {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.journey-caption p {
+  margin-top: 20px;
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+
+.journey-caption small {
+  display: block;
+  margin-top: 16px;
+  font-size: 0.875rem;
+}
+
+.plant-tag {
+  white-space: nowrap;
+  padding: 8px 12px;
+  background: var(--orange);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  will-change: transform, opacity;
+}
+
+.after-journey {
+  min-height: 70svh;
+  display: grid;
+  place-items: center;
+  padding: var(--margin);
+  background: var(--indigo);
+  color: var(--paper);
+  text-align: center;
+}

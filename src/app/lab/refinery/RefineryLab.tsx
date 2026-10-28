@@ -4,7 +4,7 @@ import { useRef } from "react";
 import dynamic from "next/dynamic";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { refineryState } from "@/components/three/refinery/state";
-import { refineryComplex as spec } from "@/components/three/refinery/specs";
+import { miniPlant as spec } from "@/components/three/refinery/specs";
 import SmoothScroll from "@/components/SmoothScroll";
 import { playIntro } from "@/lib/store";
 
@@ -57,23 +57,26 @@ export default function RefineryLab() {
           <RefineryCanvas spec={spec} />
         </div>
         <div className="lab-caption is-panel">
-          <h1>Knowledge Meets Industry.</h1>
+          <h1>Beyond the Classroom.</h1>
           <p>
-            Our ambition is to build a meaningful exchange between learners, educators and industry professionals
-            through practical insight and collaborative experiences.
+            Pencil proposes a miniature industrial learning facility where learners can examine equipment and explore
+            engineering concepts in context.
           </p>
         </div>
         <div className="lab-caption is-panel">
-          <h2>Apply the concepts.</h2>
+          <h2>From the drawing to the plant.</h2>
           <p>
-            Explore career-relevant learning pathways across engineering, construction, AI, robotics, management and
-            professional skills.
+            One process column, one vessel, one storage tank, two heat exchangers, one reactor and a flare
+            demonstration concept, with supporting piping and instrumentation.
           </p>
         </div>
         <div className="lab-caption is-panel is-dark">
-          <h2>Find Your Direction.</h2>
-          <p>Programs shown are proposed unless explicitly marked as open for admissions.</p>
-          <small>Illustrative industrial scene. It does not depict Pencil facilities.</small>
+          <h2>Learn it in context.</h2>
+          <p>
+            Equipment familiarization; process-flow interpretation; mechanical systems; inspection fundamentals;
+            maintenance concepts; and safe industrial practices.
+          </p>
+          <small>Planned facility. Scope and activities will be finalized through engineering design, safety review and commissioning.</small>
         </div>
       </section>
       <section className="lab-after">

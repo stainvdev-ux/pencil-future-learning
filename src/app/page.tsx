@@ -1,12 +1,19 @@
-import Link from "next/link";
+import Header from "@/components/Header";
+import Journey from "@/components/home/Journey";
+import HomeScroll from "@/components/home/HomeScroll";
+import "@/components/home/home.css";
 
 export default function Home() {
   return (
-    <main style={{ padding: "var(--margin)" }}>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Pencil Future Learning City</h1>
-      <p>
-        Homepage in progress. Prototype: <Link href="/lab/refinery">refinery scene</Link>
-      </p>
-    </main>
+    <>
+      <HomeScroll />
+      <Header />
+      <main>
+        <Journey />
+        <section className="after-journey">
+          <p>The rest of the homepage follows here: schools, experiential learning, admissions and enquiry.</p>
+        </section>
+      </main>
+    </>
   );
 }

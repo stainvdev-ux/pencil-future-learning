@@ -7,11 +7,13 @@ import { Environment, Html, Lightformer } from "@react-three/drei";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import type { MatKey } from "./builder";
+import { PREDRAWN, type MatKey } from "./builder";
 import type { SceneSpec } from "./specs";
 import { refineryState as S } from "./state";
+import Truck from "./Truck";
 
 const PAPER = new THREE.Color("#f4f1ea");
+const BLACK = new THREE.Color("#000000");
 const GRAPHITE = new THREE.Color("#26232e");
 const SKY = {
   zenithDay: new THREE.Color("#7f9bd8"),
@@ -245,9 +247,10 @@ export default function Refinery({ spec }: { spec: SceneSpec }) {
 
     // sketch: draw in, then hand over to the solid as the sweep passes
     lineMat.resolution.set(size.width, size.height);
-    lineMat.dashSize = draw * (plant.maxDistance + 1);
-    lineMat.opacity = 0.9 * (1 - THREE.MathUtils.smoothstep(reveal, 0.75, 1));
-    lines.visible = lineMat.opacity > 0.001 && draw > 0;
+    lineMat.dashSize = PREDRAWN + draw * (plant.maxDistance + 1 - PREDRAWN);
+    // lighter graphite while the hero text sits over the drawing
+    lineMat.opacity = 0.9 * (1 - THREE.MathUtils.smoothstep(reveal, 0.75, 1)) * (1 - 0.55 * S.side);
+    lines.visible = lineMat.opacity > 0.001;
 
     const cutY = -0.05 + reveal * spec.top;
     solidClip.constant = cutY;
@@ -260,18 +263,19 @@ export default function Refinery({ spec }: { spec: SceneSpec }) {
     u.uReal.value = real;
     (u.uZenith.value as THREE.Color).lerpColors(SKY.zenithDay, SKY.zenithDusk, dusk);
     (u.uHorizon.value as THREE.Color).lerpColors(SKY.horizonDay, SKY.horizonDusk, dusk);
-    ground.color.lerpColors(PAPER, GROUND_DAY, real).lerp(GROUND_DUSK, dusk);
+    // On paper the ground is pure emissive paper (black albedo), so light only
+    // shows on real objects like the truck; it gains albedo as the world turns real.
+    ground.color.lerpColors(BLACK, GROUND_DAY, real).lerp(GROUND_DUSK, dusk);
     ground.emissiveIntensity = 1 - real;
     fog.color.lerpColors(PAPER, FOG_DAY, real).lerp(FOG_DUSK, dusk);
     fog.near = THREE.MathUtils.lerp(spec.fog.near, spec.fog.duskNear, dusk);
 
     if (sun.current) {
-      sun.current.intensity = real * THREE.MathUtils.lerp(3.2, 1.4, dusk);
+      sun.current.intensity = THREE.MathUtils.lerp(1.8, THREE.MathUtils.lerp(3.2, 1.4, dusk), real);
       sun.current.color.setRGB(1, THREE.MathUtils.lerp(0.84, 0.6, dusk), THREE.MathUtils.lerp(0.68, 0.4, dusk));
     }
-    // On paper only the drawing exists: keep the sheet flat and unlit.
-    if (hemi.current) hemi.current.intensity = real * THREE.MathUtils.lerp(1.1, 0.45, dusk);
-    scene.environmentIntensity = real * THREE.MathUtils.lerp(1, 0.6, dusk);
+    if (hemi.current) hemi.current.intensity = THREE.MathUtils.lerp(0.9, THREE.MathUtils.lerp(1.1, 0.45, dusk), real);
+    scene.environmentIntensity = THREE.MathUtils.lerp(0.85, THREE.MathUtils.lerp(1, 0.6, dusk), real);
 
     const lightsOn = THREE.MathUtils.smoothstep(dusk, 0.35, 1);
     materials.lamp.emissiveIntensity = lightsOn * 9;
@@ -336,6 +340,7 @@ export default function Refinery({ spec }: { spec: SceneSpec }) {
         <mesh key={key} geometry={geo} material={materials[key]} castShadow={key !== "concrete" && key !== "asphalt"} receiveShadow />
       ))}
       <primitive object={lightMesh} />
+      {spec.truck && <Truck route={spec.truck} />}
       <primitive object={lines} />
 
       {spec.flares.map((f, i) => (

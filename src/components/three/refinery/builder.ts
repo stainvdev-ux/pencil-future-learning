@@ -25,6 +25,9 @@ export type MatKey =
   | "trunk";
 
 type Vec = [number, number, number];
+
+/** Pencil distance reserved for strokes that are already drawn when the scene opens. */
+export const PREDRAWN = 1;
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
 export function compose(pos: Vec, rot: Vec = [0, 0, 0], scale: Vec = [1, 1, 1]) {
@@ -42,7 +45,13 @@ export class PlantBuilder {
   private lights: number[] = [];
   private group = 0;
   private strokeInGroup = 0;
+  private predrawn = false;
   maxDistance = 0;
+
+  /** Strokes added while true are on the paper from the start (distance ≤ PREDRAWN). */
+  setPredrawn(on: boolean) {
+    this.predrawn = on;
+  }
 
   /** groupGap: how far (in metres of pencil travel) each drawing group starts after the previous one. */
   constructor(private groupGap = 5, private strokeGap = 0.35) {}
@@ -65,22 +74,31 @@ export class PlantBuilder {
     this.geos.set(key, list);
   }
 
-  /** A continuous pencil stroke through the points. */
-  stroke(points: THREE.Vector3[]) {
-    let d = this.group * this.groupGap + this.strokeInGroup * this.strokeGap;
+  /** A continuous pencil stroke through the points. pace < 1 draws long lines faster. */
+  stroke(points: THREE.Vector3[], pace = 1) {
+    if (this.predrawn) {
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        this.positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        this.distances.push(0, PREDRAWN * 0.5);
+      }
+      return;
+    }
+    let d = PREDRAWN + this.group * this.groupGap + this.strokeInGroup * this.strokeGap;
     this.strokeInGroup += 1;
     for (let i = 1; i < points.length; i++) {
       const a = points[i - 1];
       const b = points[i];
       const len = a.distanceTo(b);
       this.positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
-      this.distances.push(d, d + len);
-      d += len;
+      this.distances.push(d, d + len * pace);
+      d += len * pace;
     }
     this.maxDistance = Math.max(this.maxDistance, d);
   }
 
-  ring(c: THREE.Vector3, r: number, axis: "x" | "y" | "z" = "y", n = 40, from = 0, to = Math.PI * 2) {
+  ring(c: THREE.Vector3, r: number, axis: "x" | "y" | "z" = "y", n = 40, from = 0, to = Math.PI * 2, pace = 1) {
     const pts: THREE.Vector3[] = [];
     for (let i = 0; i <= n; i++) {
       const a = from + ((to - from) * i) / n;
@@ -90,7 +108,7 @@ export class PlantBuilder {
         axis === "y" ? V(c.x + u, c.y, c.z + v) : axis === "x" ? V(c.x, c.y + u, c.z + v) : V(c.x + u, c.y + v, c.z),
       );
     }
-    this.stroke(pts);
+    this.stroke(pts, pace);
   }
 
   // ---------- primitives ----------
@@ -301,7 +319,9 @@ export class PlantBuilder {
     this.add("trunk", new THREE.CylinderGeometry(h * 0.025, h * 0.035, h * 0.5, 6), compose([x, h * 0.25, z]));
     const geo = new THREE.IcosahedronGeometry(crown, 1);
     this.add("foliage", geo, compose([x, h * 0.62, z], [seed, seed * 2, 0], [1, 0.82 + (seed % 0.2), 1]));
-    this.ring(V(x, 0.2, z), crown, "y", 10);
+    this.ring(V(x, 0.2, z), crown, "y", 10); // plan
+    this.ring(V(x, h * 0.62, z), crown, "x", 14); // elevation, seen from the approach road
+    this.stroke([V(x, 0, z), V(x, h * 0.62 - crown, z)]);
   }
 
   /** Tall stack with banded top. */

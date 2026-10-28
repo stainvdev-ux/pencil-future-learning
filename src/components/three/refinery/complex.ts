@@ -38,7 +38,9 @@ export function buildComplex() {
     const size: [number, number, number] = x0 === x1 ? [w, 0.06, Math.abs(z1 - z0) + w] : [Math.abs(x1 - x0) + w, 0.06, w];
     b.box("asphalt", V(cx, 0.13, cz), size, true);
   };
-  road(20, 40, 20, 420, 12); // main gate road, continues outside the site
+  b.setPredrawn(true);
+  road(20, 40, 20, 640, 12); // main gate road, continues outside the site
+  b.setPredrawn(false);
   road(-180, 50, 190, 50, 10); // ring road, south
   road(-180, -135, 190, -135, 8); // ring road, north
   road(-65, -135, -65, 50, 8);
@@ -58,6 +60,34 @@ export function buildComplex() {
     const vertical = x0 === x1;
     b.box("wall", V((x0 + x1) / 2, 1.2, (z0 + z1) / 2), vertical ? [0.4, 2.4, len] : [len, 2.4, 0.4], true);
   }
+
+  // ---------- landscape: horizon, approach-road lamps, trees (already drawn: the opening rides through them) ----------
+  b.next();
+  b.setPredrawn(true);
+  b.ring(V(5, 0, 0), 1100, "y", 180, 0, Math.PI * 2, 0.03);
+  for (let z = 60; z <= 640; z += 30) {
+    for (const x of [12, 28]) {
+      b.vCylinder("carbon", x, z, 0, 10, 0.16, { verticals: 1, segments: 8 });
+      b.light(V(x, 10.3, z));
+    }
+  }
+  let seed = 7;
+  const rand = () => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
+  };
+  let planted = 0;
+  while (planted < 520) {
+    const x = -330 + rand() * 680;
+    const z = -260 + rand() * 900;
+    const inSite = x > -205 && x < 215 && z > -155 && z < 155;
+    const onRoad = x > -40 && x < 80 && z > 120; // keep the side-view camera corridor clear
+    if (inSite || onRoad) continue;
+    b.tree(x, z, 9 + rand() * 9, rand() * 6);
+    planted++;
+  }
+  b.setPredrawn(false);
+
 
   // ---------- tank farm (west) ----------
   b.next();
@@ -204,30 +234,6 @@ export function buildComplex() {
       b.vCylinder("carbon", x, z, 0, 12, 0.18, { verticals: 1, segments: 8 });
       b.light(V(x, 12.3, z));
     }
-  }
-  for (let z = 60; z <= 400; z += 30) {
-    for (const x of [12, 28]) {
-      b.vCylinder("carbon", x, z, 0, 10, 0.16, { verticals: 1, segments: 8 });
-      b.light(V(x, 10.3, z));
-    }
-  }
-
-  // ---------- landscape: trees around the site and along the approach ----------
-  b.next();
-  let seed = 7;
-  const rand = () => {
-    seed = (seed * 16807) % 2147483647;
-    return seed / 2147483647;
-  };
-  let planted = 0;
-  while (planted < 420) {
-    const x = -330 + rand() * 680;
-    const z = -260 + rand() * 640;
-    const inSite = x > -205 && x < 215 && z > -155 && z < 155;
-    const onRoad = x > 2 && x < 38 && z > 120;
-    if (inSite || onRoad) continue;
-    b.tree(x, z, 9 + rand() * 9, rand() * 6);
-    planted++;
   }
 
   return b.build();
