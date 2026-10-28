@@ -6,30 +6,25 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { EffectComposer, Bloom, N8AO, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import Refinery from "./Refinery";
+import type { SceneSpec } from "./specs";
 import { refineryState as S } from "./state";
-
-// Camera path: plan view (a site drawing) → isometric → low three-quarter → hero.
-export const CAMERA_KEYS = [
-  { p: [0.5, 62, 13], t: [0.5, 0, 0] },
-  { p: [30, 24, 34], t: [1, 2, 0] },
-  { p: [-25, 8.5, 27], t: [2, 4, -1] },
-  { p: [10, 3.6, 22], t: [7, 7, -6] },
-] as const;
 
 const smooth = (x: number) => x * x * (3 - 2 * x);
 
-function Rig() {
+// Camera path through the spec's keys: plan view (a site drawing) →
+// isometric → low three-quarter → hero, driven by refineryState.cam.
+function Rig({ keys }: { keys: SceneSpec["cameraKeys"] }) {
   const pos = useMemo(() => new THREE.Vector3(), []);
   const target = useMemo(() => new THREE.Vector3(), []);
   const a = useMemo(() => new THREE.Vector3(), []);
   const b = useMemo(() => new THREE.Vector3(), []);
 
   useFrame((state) => {
-    const c = THREE.MathUtils.clamp(S.cam, 0, CAMERA_KEYS.length - 1);
-    const i = Math.min(Math.floor(c), CAMERA_KEYS.length - 2);
+    const c = THREE.MathUtils.clamp(S.cam, 0, keys.length - 1);
+    const i = Math.min(Math.floor(c), keys.length - 2);
     const f = smooth(c - i);
-    pos.lerpVectors(a.fromArray(CAMERA_KEYS[i].p), b.fromArray(CAMERA_KEYS[i + 1].p), f);
-    target.lerpVectors(a.fromArray(CAMERA_KEYS[i].t), b.fromArray(CAMERA_KEYS[i + 1].t), f);
+    pos.lerpVectors(a.fromArray(keys[i].p), b.fromArray(keys[i + 1].p), f);
+    target.lerpVectors(a.fromArray(keys[i].t), b.fromArray(keys[i + 1].t), f);
 
     // Portrait screens: step back so the plant still fits.
     const aspect = state.size.width / state.size.height;
@@ -37,9 +32,9 @@ function Rig() {
 
     // a slow breathing drift so the scene never feels frozen
     const t = state.clock.elapsedTime;
-    const drift = Math.min(c, 1);
-    pos.x += Math.sin(t * 0.25) * 0.35 * drift;
-    pos.y += Math.sin(t * 0.31) * 0.2 * drift;
+    const drift = Math.min(c, 1) * pos.distanceTo(target) * 0.012;
+    pos.x += Math.sin(t * 0.25) * drift;
+    pos.y += Math.sin(t * 0.31) * drift * 0.6;
 
     state.camera.position.copy(pos);
     state.camera.lookAt(target);
@@ -47,21 +42,22 @@ function Rig() {
   return null;
 }
 
-export default function RefineryCanvas() {
+export default function RefineryCanvas({ spec }: { spec: SceneSpec }) {
+  const start = spec.cameraKeys[0].p;
   return (
     <Canvas
       shadows
       dpr={[1, 2]}
-      camera={{ fov: 35, near: 0.5, far: 600, position: [0.5, 62, 13] }}
-      gl={{ antialias: false, powerPreference: "high-performance" }}
+      camera={{ fov: 35, near: 0.5, far: spec.sky * 2.5, position: start }}
+      gl={{ antialias: false, powerPreference: "high-performance", logarithmicDepthBuffer: false }}
       onCreated={({ gl }) => {
         gl.localClippingEnabled = true;
       }}
     >
-      <Refinery />
-      <Rig />
+      <Refinery spec={spec} />
+      <Rig keys={spec.cameraKeys} />
       <EffectComposer multisampling={4}>
-        <N8AO aoRadius={2.2} intensity={2.2} distanceFalloff={1.2} halfRes />
+        <N8AO aoRadius={spec.ao} intensity={2.2} distanceFalloff={1.2} halfRes />
         <Bloom mipmapBlur intensity={0.9} luminanceThreshold={1} luminanceSmoothing={0.2} />
         <ToneMapping mode={ToneMappingMode.NEUTRAL} />
       </EffectComposer>

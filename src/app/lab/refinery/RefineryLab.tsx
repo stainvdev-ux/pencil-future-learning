@@ -4,7 +4,7 @@ import { useRef } from "react";
 import dynamic from "next/dynamic";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { refineryState } from "@/components/three/refinery/state";
-import { CAMERA_KEYS } from "@/components/three/refinery/RefineryCanvas";
+import { refineryComplex as spec } from "@/components/three/refinery/specs";
 import SmoothScroll from "@/components/SmoothScroll";
 import { playIntro } from "@/lib/store";
 
@@ -17,7 +17,7 @@ export default function RefineryLab() {
     () => {
       playIntro(); // no preloader on the lab page: let Lenis scroll straight away
       const S = refineryState;
-      const last = CAMERA_KEYS.length - 1;
+      const last = spec.cameraKeys.length - 1;
 
       gsap.to(S, { intro: 0.12, duration: 2.6, ease: "power2.out", delay: 0.4 });
 
@@ -54,26 +54,26 @@ export default function RefineryLab() {
       <SmoothScroll />
       <section className="lab-stage">
         <div className="lab-canvas">
-          <RefineryCanvas />
-        </div>
-        <div className="lab-caption">
-          <h1>Beyond the Classroom.</h1>
-          <p>A planned miniature industrial learning facility, drawn first, then built.</p>
+          <RefineryCanvas spec={spec} />
         </div>
         <div className="lab-caption is-panel">
-          <h2>From the drawing to the plant.</h2>
+          <h1>Knowledge Meets Industry.</h1>
           <p>
-            One process column, one vessel, one storage tank, two heat exchangers, one reactor and a flare
-            demonstration concept, with supporting piping and instrumentation.
+            Our ambition is to build a meaningful exchange between learners, educators and industry professionals
+            through practical insight and collaborative experiences.
+          </p>
+        </div>
+        <div className="lab-caption is-panel">
+          <h2>Apply the concepts.</h2>
+          <p>
+            Explore career-relevant learning pathways across engineering, construction, AI, robotics, management and
+            professional skills.
           </p>
         </div>
         <div className="lab-caption is-panel is-dark">
-          <h2>Learn it where it works.</h2>
-          <p>
-            Equipment familiarisation, process-flow interpretation, mechanical systems, inspection fundamentals,
-            maintenance concepts and safe industrial practices.
-          </p>
-          <small>Planned facility · concept visualisation. Scope to be finalised through engineering design and safety review.</small>
+          <h2>Find Your Direction.</h2>
+          <p>Programs shown are proposed unless explicitly marked as open for admissions.</p>
+          <small>Illustrative industrial scene. It does not depict Pencil facilities.</small>
         </div>
       </section>
       <section className="lab-after">

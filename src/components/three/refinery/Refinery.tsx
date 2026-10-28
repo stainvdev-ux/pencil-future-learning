@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Environment, Html, Lightformer } from "@react-three/drei";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { buildPlant, FLARE_TIP, LABELS } from "./plant";
 import type { MatKey } from "./builder";
+import type { SceneSpec } from "./specs";
 import { refineryState as S } from "./state";
-
-const TOP = 16.5; // highest point of the plant, for the construction sweep
 
 const PAPER = new THREE.Color("#f4f1ea");
 const GRAPHITE = new THREE.Color("#26232e");
@@ -22,24 +20,30 @@ const SKY = {
   horizonDusk: new THREE.Color("#e9773d"),
   ground: new THREE.Color("#2b2233"),
 };
-const GROUND_DAY = new THREE.Color("#8a8278");
-const GROUND_DUSK = new THREE.Color("#3a3238");
-const FOG_DAY = new THREE.Color("#cdb7a6");
+const GROUND_DAY = new THREE.Color("#7c7860");
+const GROUND_DUSK = new THREE.Color("#302a2c");
+const FOG_DAY = new THREE.Color("#d8c3b0");
 const FOG_DUSK = new THREE.Color("#4f2448");
+const LIGHT_WARM = new THREE.Color("#ffc58a");
 
 const MATERIALS: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   paint: { color: "#e8e5de", roughness: 0.42, metalness: 0.12 },
   steel: { color: "#c8ccd2", roughness: 0.26, metalness: 1 },
+  insul: { color: "#d3d6da", roughness: 0.38, metalness: 0.85 },
   carbon: { color: "#5d6168", roughness: 0.5, metalness: 0.75 },
   pipe: { color: "#b4b8be", roughness: 0.32, metalness: 0.9 },
   accent: { color: "#ea7131", roughness: 0.45, metalness: 0.2 },
+  band: { color: "#d9542a", roughness: 0.5, metalness: 0.1 },
   concrete: { color: "#a19d96", roughness: 0.95, metalness: 0 },
+  asphalt: { color: "#3b3a3d", roughness: 0.9, metalness: 0 },
   wall: { color: "#dcd6cb", roughness: 0.9, metalness: 0 },
   roof: { color: "#24085c", roughness: 0.5, metalness: 0.35 },
   cladding: { color: "#2c2c32", roughness: 0.45, metalness: 0.6 },
   glass: { color: "#1c1a22", roughness: 0.1, metalness: 0.2, emissive: "#ffb46b", emissiveIntensity: 0 },
   rail: { color: "#e2b63a", roughness: 0.5, metalness: 0.3 },
   lamp: { color: "#2a2a2a", roughness: 0.4, metalness: 0.5, emissive: "#ffd9a8", emissiveIntensity: 0 },
+  foliage: { color: "#4b6236", roughness: 0.95, metalness: 0, flatShading: true },
+  trunk: { color: "#5a4636", roughness: 0.95, metalness: 0 },
 };
 
 const skyVertex = /* glsl */ `
@@ -97,7 +101,7 @@ function useSketch(positions: Float32Array, distances: Float32Array, clip: THREE
       linewidth: 1.4,
       dashed: true,
       dashSize: 0,
-      gapSize: 1e6,
+      gapSize: 1e7,
       transparent: true,
       depthWrite: false,
     });
@@ -109,14 +113,14 @@ function useSketch(positions: Float32Array, distances: Float32Array, clip: THREE
   }, [positions, distances, clip]);
 }
 
-export default function Refinery() {
-  const plant = useMemo(() => buildPlant(), []);
+export default function Refinery({ spec }: { spec: SceneSpec }) {
+  const plant = useMemo(() => spec.build(), [spec]);
   const size = useThree((s) => s.size);
   const scene = useThree((s) => s.scene);
 
   const solidClip = useMemo(() => new THREE.Plane(new THREE.Vector3(0, -1, 0), 0), []);
   const sketchClip = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), []);
-  const cut = useMemo(() => ({ uCut: { value: 0 }, uEdge: { value: 0 } }), []);
+  const cut = useMemo(() => ({ uCut: { value: 0 }, uEdge: { value: 0 }, uSeam: { value: spec.seam } }), [spec.seam]);
 
   const materials = useMemo(() => {
     const out = {} as Record<MatKey, THREE.MeshStandardMaterial>;
@@ -128,14 +132,15 @@ export default function Refinery() {
       m.onBeforeCompile = (shader) => {
         shader.uniforms.uCut = cut.uCut;
         shader.uniforms.uEdge = cut.uEdge;
+        shader.uniforms.uSeam = cut.uSeam;
         shader.vertexShader = shader.vertexShader
           .replace("#include <common>", "#include <common>\nvarying float vWorldY;")
           .replace("#include <fog_vertex>", "#include <fog_vertex>\nvWorldY = (modelMatrix * vec4(transformed, 1.0)).y;");
         shader.fragmentShader = shader.fragmentShader
-          .replace("#include <common>", "#include <common>\nuniform float uCut;\nuniform float uEdge;\nvarying float vWorldY;")
+          .replace("#include <common>", "#include <common>\nuniform float uCut;\nuniform float uEdge;\nuniform float uSeam;\nvarying float vWorldY;")
           .replace(
             "#include <emissivemap_fragment>",
-            "#include <emissivemap_fragment>\nfloat seam = smoothstep(0.16, 0.0, uCut - vWorldY) * uEdge;\ntotalEmissiveRadiance += vec3(1.0, 0.42, 0.14) * seam * 5.0;",
+            "#include <emissivemap_fragment>\nfloat seam = smoothstep(uSeam, 0.0, uCut - vWorldY) * uEdge;\ntotalEmissiveRadiance += vec3(1.0, 0.42, 0.14) * seam * 5.0;",
           );
       };
       out[key] = m;
@@ -144,6 +149,21 @@ export default function Refinery() {
   }, [solidClip, cut]);
 
   const { lines, mat: lineMat } = useSketch(plant.sketchPositions, plant.sketchDistances, sketchClip);
+
+  // every light fitting on the plant: one instanced mesh, glowing at dusk
+  const lightMesh = useMemo(() => {
+    const count = plant.lights.length / 3;
+    const mat = new THREE.MeshBasicMaterial({ color: LIGHT_WARM.clone(), toneMapped: false });
+    mat.clippingPlanes = [solidClip];
+    const mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(spec.seam > 0.5 ? 0.45 : 0.12, 8, 6), mat, count);
+    const m = new THREE.Matrix4();
+    for (let i = 0; i < count; i++) {
+      m.makeTranslation(plant.lights[i * 3], plant.lights[i * 3 + 1], plant.lights[i * 3 + 2]);
+      mesh.setMatrixAt(i, m);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    return mesh;
+  }, [plant, solidClip, spec.seam]);
 
   const sky = useMemo(
     () =>
@@ -182,7 +202,7 @@ export default function Refinery() {
     [],
   );
 
-  const fog = useMemo(() => new THREE.Fog(PAPER.clone(), 60, 170), []);
+  const fog = useMemo(() => new THREE.Fog(PAPER.clone(), spec.fog.near, spec.fog.far), [spec.fog]);
   useEffect(() => {
     scene.fog = fog;
     return () => {
@@ -192,8 +212,16 @@ export default function Refinery() {
 
   const sun = useRef<THREE.DirectionalLight>(null);
   const hemi = useRef<THREE.HemisphereLight>(null);
-  const flareLight = useRef<THREE.PointLight>(null);
+  const flareLights = useRef<(THREE.PointLight | null)[]>([]);
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useLayoutEffect(() => {
+    const cam = sun.current?.shadow.camera;
+    if (!cam) return;
+    const e = spec.shadowExtent;
+    Object.assign(cam, { left: -e, right: e, top: e, bottom: -e, far: e * 6 });
+    cam.updateProjectionMatrix();
+  }, [spec.shadowExtent]);
 
   useEffect(
     () => () => {
@@ -201,11 +229,13 @@ export default function Refinery() {
       Object.values(materials).forEach((m) => m.dispose());
       lines.geometry.dispose();
       lineMat.dispose();
+      lightMesh.geometry.dispose();
+      (lightMesh.material as THREE.Material).dispose();
       sky.dispose();
       ground.dispose();
       flame.dispose();
     },
-    [plant, materials, lines, lineMat, sky, ground, flame],
+    [plant, materials, lines, lineMat, lightMesh, sky, ground, flame],
   );
 
   useFrame((state) => {
@@ -219,7 +249,7 @@ export default function Refinery() {
     lineMat.opacity = 0.9 * (1 - THREE.MathUtils.smoothstep(reveal, 0.75, 1));
     lines.visible = lineMat.opacity > 0.001 && draw > 0;
 
-    const cutY = -0.05 + reveal * TOP;
+    const cutY = -0.05 + reveal * spec.top;
     solidClip.constant = cutY;
     sketchClip.constant = -cutY;
     cut.uCut.value = cutY;
@@ -233,7 +263,7 @@ export default function Refinery() {
     ground.color.lerpColors(PAPER, GROUND_DAY, real).lerp(GROUND_DUSK, dusk);
     ground.emissiveIntensity = 1 - real;
     fog.color.lerpColors(PAPER, FOG_DAY, real).lerp(FOG_DUSK, dusk);
-    fog.near = THREE.MathUtils.lerp(60, 35, dusk);
+    fog.near = THREE.MathUtils.lerp(spec.fog.near, spec.fog.duskNear, dusk);
 
     if (sun.current) {
       sun.current.intensity = real * THREE.MathUtils.lerp(3.2, 1.4, dusk);
@@ -246,13 +276,16 @@ export default function Refinery() {
     const lightsOn = THREE.MathUtils.smoothstep(dusk, 0.35, 1);
     materials.lamp.emissiveIntensity = lightsOn * 9;
     materials.glass.emissiveIntensity = lightsOn * 2;
+    (lightMesh.material as THREE.MeshBasicMaterial).color.copy(LIGHT_WARM).multiplyScalar(0.25 + lightsOn * 7);
     flame.uniforms.uTime.value = t;
     flame.uniforms.uOn.value = THREE.MathUtils.smoothstep(dusk, 0.2, 0.8);
-    if (flareLight.current) flareLight.current.intensity = flame.uniforms.uOn.value * 220;
+    flareLights.current.forEach((l, i) => {
+      if (l) l.intensity = flame.uniforms.uOn.value * 220 * spec.flares[i].size ** 2;
+    });
 
     labelRefs.current.forEach((el, i) => {
       if (!el) return;
-      const a = THREE.MathUtils.clamp(labels * LABELS.length - i, 0, 1);
+      const a = THREE.MathUtils.clamp(labels * spec.labels.length - i, 0, 1);
       el.style.opacity = String(a);
       el.style.transform = `translate3d(-50%, ${(1 - a) * 12}px, 0)`;
     });
@@ -261,47 +294,57 @@ export default function Refinery() {
   return (
     <>
       <mesh material={sky} renderOrder={-1}>
-        <sphereGeometry args={[260, 32, 16]} />
+        <sphereGeometry args={[spec.sky, 32, 16]} />
       </mesh>
       <mesh material={ground} rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[600, 600]} />
+        <planeGeometry args={[spec.sky * 2.2, spec.sky * 2.2]} />
       </mesh>
 
       <hemisphereLight ref={hemi} args={["#f3ecdf", "#4a3d33", 0.6]} />
       <directionalLight
         ref={sun}
-        position={[-42, 24, 30]}
+        position={spec.sun}
         intensity={0}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[4096, 4096]}
         shadow-bias={-0.0004}
-        shadow-normalBias={0.03}
-        shadow-camera-left={-30}
-        shadow-camera-right={30}
-        shadow-camera-top={30}
-        shadow-camera-bottom={-30}
-        shadow-camera-far={140}
+        shadow-normalBias={spec.seam > 0.5 ? 0.6 : 0.03}
       />
-      <pointLight ref={flareLight} position={FLARE_TIP.toArray()} color="#ff8a3d" distance={45} decay={1.6} intensity={0} />
+      {spec.flares.map((f, i) => (
+        <pointLight
+          key={i}
+          ref={(l) => {
+            flareLights.current[i] = l;
+          }}
+          position={f.tip.toArray()}
+          color="#ff8a3d"
+          distance={45 * f.size * 2}
+          decay={1.6}
+          intensity={0}
+        />
+      ))}
 
       <Environment resolution={256} frames={1}>
-        <color attach="background" args={["#8d86a3"]} />
+        <color attach="background" args={["#a0978c"]} />
         <Lightformer form="rect" intensity={3} color="#ffb27a" position={[-30, 6, 20]} scale={[40, 8, 1]} onUpdate={(self) => self.lookAt(0, 0, 0)} />
-        <Lightformer form="rect" intensity={1.6} color="#a9b6ff" position={[0, 30, 0]} rotation-x={Math.PI / 2} scale={[60, 60, 1]} />
+        <Lightformer form="rect" intensity={1.4} color="#fff1e2" position={[0, 30, 0]} rotation-x={Math.PI / 2} scale={[60, 60, 1]} />
         <Lightformer form="rect" intensity={1.2} color="#ffffff" position={[30, 5, -20]} scale={[30, 5, 1]} onUpdate={(self) => self.lookAt(0, 0, 0)} />
         <Lightformer form="ring" intensity={2} color="#ff7a3d" position={[10, 3, 30]} scale={6} onUpdate={(self) => self.lookAt(0, 0, 0)} />
       </Environment>
 
       {[...plant.solids].map(([key, geo]) => (
-        <mesh key={key} geometry={geo} material={materials[key]} castShadow={key !== "concrete"} receiveShadow />
+        <mesh key={key} geometry={geo} material={materials[key]} castShadow={key !== "concrete" && key !== "asphalt"} receiveShadow />
       ))}
+      <primitive object={lightMesh} />
       <primitive object={lines} />
 
-      <mesh material={flame} position={[FLARE_TIP.x, FLARE_TIP.y + 1.5, FLARE_TIP.z]}>
-        <coneGeometry args={[0.55, 3.2, 16, 8, true]} />
-      </mesh>
+      {spec.flares.map((f, i) => (
+        <mesh key={i} material={flame} position={[f.tip.x, f.tip.y + 1.5 * f.size, f.tip.z]} scale={f.size}>
+          <coneGeometry args={[0.55, 3.2, 16, 8, true]} />
+        </mesh>
+      ))}
 
-      {LABELS.map((l, i) => (
+      {spec.labels.map((l, i) => (
         <Html key={l.id} position={l.at.toArray()} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
           <div
             ref={(el) => {
