@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { EffectComposer, Bloom, N8AO, ToneMapping } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
+import { EffectComposer, Bloom, N8AO, Noise, ToneMapping, Vignette } from "@react-three/postprocessing";
+import { BlendFunction, ToneMappingMode, type VignetteEffect } from "postprocessing";
 import Refinery from "./Refinery";
 import type { SceneSpec } from "./specs";
 import { refineryState as S } from "./state";
@@ -59,6 +59,21 @@ function Rig({ keys, truck }: { keys: SceneSpec["cameraKeys"]; truck?: SceneSpec
   return null;
 }
 
+// Lens finish: grain throughout (it reads as paper tooth on the drawing), and a
+// vignette that only closes in once the world is real.
+function Finish() {
+  const vignette = useRef<VignetteEffect>(null);
+  useFrame(() => {
+    if (vignette.current) vignette.current.darkness = 0.12 + 0.4 * S.real;
+  });
+  return (
+    <>
+      <Vignette ref={vignette} offset={0.32} darkness={0.12} />
+      <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.12} />
+    </>
+  );
+}
+
 export default function RefineryCanvas({ spec }: { spec: SceneSpec }) {
   const start = spec.cameraKeys[0].p;
   return (
@@ -77,6 +92,7 @@ export default function RefineryCanvas({ spec }: { spec: SceneSpec }) {
         <N8AO aoRadius={spec.ao} intensity={2.2} distanceFalloff={1.2} halfRes />
         <Bloom mipmapBlur intensity={0.9} luminanceThreshold={1} luminanceSmoothing={0.2} />
         <ToneMapping mode={ToneMappingMode.NEUTRAL} />
+        <Finish />
       </EffectComposer>
     </Canvas>
   );

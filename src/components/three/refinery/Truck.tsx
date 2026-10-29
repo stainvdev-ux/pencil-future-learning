@@ -17,7 +17,7 @@ function useMaterials() {
   return useMemo(
     () => ({
       cab: new THREE.MeshPhysicalMaterial({ color: "#2c0a6e", metalness: 0.45, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.12 }),
-      tank: new THREE.MeshPhysicalMaterial({ color: "#f3f1ec", metalness: 0.1, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.1 }),
+      tank: new THREE.MeshPhysicalMaterial({ color: "#f6f4ef", metalness: 0, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.2 }),
       stripe: new THREE.MeshPhysicalMaterial({ color: "#ea7131", metalness: 0.1, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.15 }),
       glass: new THREE.MeshPhysicalMaterial({ color: "#0d0f14", metalness: 0.9, roughness: 0.04 }),
       chrome: new THREE.MeshStandardMaterial({ color: "#d6d9de", metalness: 1, roughness: 0.18 }),
@@ -94,6 +94,12 @@ export default function Truck({ route }: { route: NonNullable<SceneSpec["truck"]
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const wheels = useRef<THREE.Group[]>([]);
+  const beams = useRef<(THREE.SpotLight | null)[]>([]);
+  const beamTarget = useMemo(() => {
+    const o = new THREE.Object3D();
+    o.position.set(0, 0, -30);
+    return o;
+  }, []);
   const pos = useMemo(() => new THREE.Vector3(), []);
 
   useEffect(() => () => Object.values(m).forEach((mat) => mat.dispose()), [m]);
@@ -112,6 +118,7 @@ export default function Truck({ route }: { route: NonNullable<SceneSpec["truck"]
     }
     const lightsOn = THREE.MathUtils.smoothstep(S.dusk, 0.3, 0.9);
     m.head.emissiveIntensity = 0.2 + lightsOn * 6;
+    beams.current.forEach((b) => b && (b.intensity = lightsOn * 260));
     m.tail.emissiveIntensity = 0.3 + lightsOn * 4;
     m.shadow.opacity = 0.5 * (1 - S.real * 0.6);
   });
@@ -122,6 +129,23 @@ export default function Truck({ route }: { route: NonNullable<SceneSpec["truck"]
         <planeGeometry args={[3.4, 12]} />
       </mesh>
 
+      <primitive object={beamTarget} />
+      {[-0.82, 0.82].map((x, i) => (
+        <spotLight
+          key={x}
+          ref={(l) => {
+            beams.current[i] = l;
+          }}
+          position={[x, 1.42, -5.45]}
+          target={beamTarget}
+          color="#fff1d6"
+          angle={0.42}
+          penumbra={0.7}
+          distance={60}
+          decay={1.5}
+          intensity={0}
+        />
+      ))}
       <group ref={body}>
         {/* chassis */}
         {[-0.5, 0.5].map((x) => (

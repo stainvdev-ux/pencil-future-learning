@@ -22,6 +22,13 @@ export const COMPLEX_LABELS = [
   { id: "logistics", name: "Logistics & Supply Chain Management", at: V(20, 15, 95) },
 ];
 
+export const COMPLEX_SMOKE = [
+  { p: V(-40, 55.5, -58), kind: "smoke" as const },
+  { p: V(-24, 55.5, -58), kind: "smoke" as const },
+  { p: V(80, 85.5, -64), kind: "smoke" as const },
+  ...[-72, -96].flatMap((z) => Array.from({ length: 7 }, (_, i) => ({ p: V(104 + 12 * i, 14.5, z), kind: "steam" as const }))),
+];
+
 export const COMPLEX_FLARES = [
   { tip: V(175, 95, -120), size: 4.5 },
   { tip: V(158, 76, -128), size: 3.4 },

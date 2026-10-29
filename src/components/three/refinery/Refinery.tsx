@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Environment, Html, Lightformer } from "@react-three/drei";
@@ -11,6 +11,7 @@ import { PREDRAWN, type MatKey } from "./builder";
 import type { SceneSpec } from "./specs";
 import { refineryState as S } from "./state";
 import Truck from "./Truck";
+import Smoke from "./Smoke";
 
 const PAPER = new THREE.Color("#f4f1ea");
 const BLACK = new THREE.Color("#000000");
@@ -48,6 +49,116 @@ const MATERIALS: Record<MatKey, THREE.MeshStandardMaterialParameters> = {
   trunk: { color: "#5a4636", roughness: 0.95, metalness: 0 },
 };
 
+// Which procedural surface each material gets (see SURFACE_GLSL).
+const SURFACE: Partial<Record<MatKey, number>> = {
+  concrete: 1,
+  wall: 1,
+  asphalt: 2,
+  paint: 3,
+  carbon: 3,
+  pipe: 3,
+  accent: 3,
+  band: 3,
+  steel: 3,
+  rail: 3,
+  cladding: 3,
+  roof: 3,
+  insul: 4,
+};
+
+const NOISE_GLSL = /* glsl */ `
+  varying vec3 vWorldPos;
+  varying vec3 vWorldNormal;
+  float h31(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  float vnoise(vec3 x) {
+    vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(h31(i), h31(i + vec3(1, 0, 0)), f.x), mix(h31(i + vec3(0, 1, 0)), h31(i + vec3(1, 1, 0)), f.x), f.y),
+               mix(mix(h31(i + vec3(0, 0, 1)), h31(i + vec3(1, 0, 1)), f.x), mix(h31(i + vec3(0, 1, 1)), h31(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+  }
+  float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * vnoise(p); p *= 2.03; a *= 0.5; } return s; }
+  vec2 surfUV() {
+    vec3 n = abs(vWorldNormal);
+    return n.y > 0.6 ? vWorldPos.xz : (n.x > n.z ? vWorldPos.zy : vWorldPos.xy);
+  }
+`;
+
+// Procedural wear: concrete joints and stains, asphalt aggregate, grime and rust
+// streaks on steel, cladding seams on insulated columns, grass and dry earth on land.
+const SURFACE_GLSL = /* glsl */ `
+#ifdef SURFACE
+  vec2 suv = surfUV();
+  float n1 = fbm(vec3(suv * 0.25, 1.7));
+  float n2 = vnoise(vec3(suv * 5.0, 4.1));
+  #if SURFACE == 1
+    vec2 jg = abs(fract(suv / 6.0) - 0.5);
+    float joint = smoothstep(0.488, 0.5, max(jg.x, jg.y));
+    float stain = smoothstep(0.5, 0.75, fbm(vec3(suv * 0.06, 9.0)));
+    diffuseColor.rgb *= mix(0.8, 1.1, n1) * mix(0.93, 1.05, n2) * (1.0 - 0.3 * joint) * (1.0 - 0.22 * stain);
+  #elif SURFACE == 2
+    float patchy = smoothstep(0.45, 0.7, fbm(vec3(suv * 0.12, 2.0)));
+    float speck = step(0.92, vnoise(vec3(suv * 28.0, 3.0)));
+    diffuseColor.rgb = diffuseColor.rgb * mix(0.85, 1.15, n1) * (1.0 - 0.2 * patchy) + speck * 0.05;
+  #elif SURFACE == 3 || SURFACE == 4
+    float hgt = vWorldPos.y;
+    float streak = fbm(vec3((vWorldPos.x + vWorldPos.z) * 1.6, hgt * 0.12, 5.0));
+    float dirt = 1.0 - smoothstep(0.0, 3.0, hgt);
+    diffuseColor.rgb *= 1.0 - 0.3 * dirt * (0.5 + 0.5 * n1);
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.8, 0.72, 0.62), 0.35 * smoothstep(0.55, 0.85, streak));
+    #if SURFACE == 4
+      float seamLine = smoothstep(0.465, 0.5, abs(fract(hgt / 1.25) - 0.5));
+      diffuseColor.rgb *= 1.0 - 0.22 * seamLine;
+    #endif
+  #elif SURFACE == 5
+    float dry = smoothstep(0.35, 0.7, fbm(vec3(suv * 0.02, 6.0)));
+    vec3 grass = vec3(0.3, 0.36, 0.2);
+    vec3 earth = vec3(0.46, 0.36, 0.26);
+    diffuseColor.rgb *= mix(grass, earth, dry) * 2.3 * mix(0.82, 1.12, n1) * mix(0.94, 1.04, n2);
+  #endif
+#endif
+`;
+
+const ROUGH_GLSL = /* glsl */ `
+#ifdef SURFACE
+  #if SURFACE == 3 || SURFACE == 4
+    roughnessFactor = clamp(roughnessFactor + (n1 - 0.45) * 0.32, 0.05, 1.0);
+  #elif SURFACE == 1 || SURFACE == 2
+    roughnessFactor = clamp(roughnessFactor - n2 * 0.08, 0.5, 1.0);
+  #endif
+#endif
+`;
+
+/** Adds world-space varyings, surface detail and the construction seam to a standard material. */
+function patchMaterial(
+  m: THREE.MeshStandardMaterial,
+  surface: number | undefined,
+  cut?: { uCut: { value: number }; uEdge: { value: number }; uSeam: { value: number } },
+) {
+  // programs are cached by this key, so each surface type compiles its own variant
+  m.customProgramCacheKey = () => `surface-${surface ?? 0}-${cut ? 1 : 0}`;
+  m.onBeforeCompile = (shader) => {
+    if (cut) Object.assign(shader.uniforms, cut);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vWorldPos;\nvarying vec3 vWorldNormal;")
+      .replace(
+        "#include <fog_vertex>",
+        "#include <fog_vertex>\nvWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvWorldNormal = normalize(mat3(modelMatrix) * objectNormal);",
+      );
+    let frag = (surface ? `#define SURFACE ${surface}\n` : "") + shader.fragmentShader;
+    frag = frag
+      .replace("#include <common>", "#include <common>\n" + NOISE_GLSL + (cut ? "uniform float uCut;\nuniform float uEdge;\nuniform float uSeam;\n" : ""))
+      .replace("#include <map_fragment>", "#include <map_fragment>\n" + SURFACE_GLSL)
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n" + ROUGH_GLSL);
+    if (cut) {
+      // a hot seam glows where the construction sweep currently is
+      frag = frag.replace(
+        "#include <emissivemap_fragment>",
+        "#include <emissivemap_fragment>\nfloat seam = smoothstep(uSeam, 0.0, uCut - vWorldPos.y) * uEdge;\ntotalEmissiveRadiance += vec3(1.0, 0.42, 0.14) * seam * 5.0;",
+      );
+    }
+    shader.fragmentShader = frag;
+  };
+}
+
 const skyVertex = /* glsl */ `
   varying vec3 vDir;
   void main() {
@@ -57,11 +168,26 @@ const skyVertex = /* glsl */ `
 `;
 const skyFragment = /* glsl */ `
   uniform vec3 uPaper; uniform vec3 uZenith; uniform vec3 uHorizon; uniform vec3 uGround;
-  uniform float uReal;
+  uniform vec3 uSunDir; uniform float uReal; uniform float uDusk; uniform float uTime;
   varying vec3 vDir;
+  float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float n2(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
+  float fbm2(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * n2(p); p *= 2.07; a *= 0.5; } return s; }
   void main() {
-    float h = vDir.y;
+    vec3 d = normalize(vDir);
+    float h = d.y;
     vec3 sky = mix(uHorizon, uZenith, smoothstep(0.0, 0.45, h));
+    // sun disc and glow
+    float sd = max(dot(d, normalize(uSunDir)), 0.0);
+    vec3 sunCol = mix(vec3(1.0, 0.85, 0.6), vec3(1.0, 0.5, 0.2), uDusk);
+    sky += sunCol * (pow(sd, 900.0) * 6.0 + pow(sd, 12.0) * 0.35 * (1.0 - uDusk * 0.4));
+    // clouds on a plane above the horizon, lit warm at dusk
+    vec2 cuv = d.xz / max(h, 0.06) * 0.9 + vec2(uTime * 0.004, 0.0);
+    float c = fbm2(cuv * 1.3);
+    float clouds = smoothstep(0.52, 0.85, c) * smoothstep(0.02, 0.16, h) * (1.0 - smoothstep(0.45, 0.85, h));
+    vec3 cloudCol = mix(vec3(1.0, 0.97, 0.92), mix(vec3(1.0, 0.56, 0.3), vec3(0.32, 0.16, 0.38), smoothstep(0.1, 0.4, h)), uDusk);
+    sky = mix(sky, cloudCol, clouds * 0.8);
     sky = mix(uGround, sky, smoothstep(-0.04, 0.015, h));
     gl_FragColor = vec4(mix(uPaper, sky, uReal), 1.0);
   }
@@ -130,21 +256,7 @@ export default function Refinery({ spec }: { spec: SceneSpec }) {
       const m = new THREE.MeshStandardMaterial({ ...MATERIALS[key], side: THREE.DoubleSide });
       m.clippingPlanes = [solidClip];
       m.clipShadows = true;
-      // A hot seam glows where the construction sweep currently is.
-      m.onBeforeCompile = (shader) => {
-        shader.uniforms.uCut = cut.uCut;
-        shader.uniforms.uEdge = cut.uEdge;
-        shader.uniforms.uSeam = cut.uSeam;
-        shader.vertexShader = shader.vertexShader
-          .replace("#include <common>", "#include <common>\nvarying float vWorldY;")
-          .replace("#include <fog_vertex>", "#include <fog_vertex>\nvWorldY = (modelMatrix * vec4(transformed, 1.0)).y;");
-        shader.fragmentShader = shader.fragmentShader
-          .replace("#include <common>", "#include <common>\nuniform float uCut;\nuniform float uEdge;\nuniform float uSeam;\nvarying float vWorldY;")
-          .replace(
-            "#include <emissivemap_fragment>",
-            "#include <emissivemap_fragment>\nfloat seam = smoothstep(uSeam, 0.0, uCut - vWorldY) * uEdge;\ntotalEmissiveRadiance += vec3(1.0, 0.42, 0.14) * seam * 5.0;",
-          );
-      };
+      patchMaterial(m, SURFACE[key], cut);
       out[key] = m;
     }
     return out;
@@ -180,14 +292,21 @@ export default function Refinery({ spec }: { spec: SceneSpec }) {
           uZenith: { value: SKY.zenithDay.clone() },
           uHorizon: { value: SKY.horizonDay.clone() },
           uGround: { value: SKY.ground.clone() },
+          uSunDir: { value: new THREE.Vector3(...spec.sun).normalize() },
           uReal: { value: 0 },
+          uDusk: { value: 0 },
+          uTime: { value: 0 },
         },
       }),
-    [],
+    [spec.sun],
   );
 
   const ground = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: PAPER.clone(), roughness: 1, emissive: PAPER.clone(), emissiveIntensity: 1 }),
+    () => {
+      const m = new THREE.MeshStandardMaterial({ color: PAPER.clone(), roughness: 1, emissive: PAPER.clone(), emissiveIntensity: 1 });
+      patchMaterial(m, 5);
+      return m;
+    },
     [],
   );
 
@@ -261,6 +380,8 @@ export default function Refinery({ spec }: { spec: SceneSpec }) {
     // world: paper → day → dusk
     const u = sky.uniforms;
     u.uReal.value = real;
+    u.uDusk.value = dusk;
+    u.uTime.value = t;
     (u.uZenith.value as THREE.Color).lerpColors(SKY.zenithDay, SKY.zenithDusk, dusk);
     (u.uHorizon.value as THREE.Color).lerpColors(SKY.horizonDay, SKY.horizonDusk, dusk);
     // On paper the ground is pure emissive paper (black albedo), so light only
@@ -275,7 +396,7 @@ export default function Refinery({ spec }: { spec: SceneSpec }) {
       sun.current.color.setRGB(1, THREE.MathUtils.lerp(0.84, 0.6, dusk), THREE.MathUtils.lerp(0.68, 0.4, dusk));
     }
     if (hemi.current) hemi.current.intensity = THREE.MathUtils.lerp(0.9, THREE.MathUtils.lerp(1.1, 0.45, dusk), real);
-    scene.environmentIntensity = THREE.MathUtils.lerp(0.85, THREE.MathUtils.lerp(1, 0.6, dusk), real);
+    scene.environmentIntensity = THREE.MathUtils.lerp(0.45, THREE.MathUtils.lerp(1, 0.6, dusk), real);
 
     const lightsOn = THREE.MathUtils.smoothstep(dusk, 0.35, 1);
     materials.lamp.emissiveIntensity = lightsOn * 9;
@@ -328,13 +449,13 @@ export default function Refinery({ spec }: { spec: SceneSpec }) {
         />
       ))}
 
-      <Environment resolution={256} frames={1}>
-        <color attach="background" args={["#a0978c"]} />
-        <Lightformer form="rect" intensity={3} color="#ffb27a" position={[-30, 6, 20]} scale={[40, 8, 1]} onUpdate={(self) => self.lookAt(0, 0, 0)} />
-        <Lightformer form="rect" intensity={1.4} color="#fff1e2" position={[0, 30, 0]} rotation-x={Math.PI / 2} scale={[60, 60, 1]} />
-        <Lightformer form="rect" intensity={1.2} color="#ffffff" position={[30, 5, -20]} scale={[30, 5, 1]} onUpdate={(self) => self.lookAt(0, 0, 0)} />
-        <Lightformer form="ring" intensity={2} color="#ff7a3d" position={[10, 3, 30]} scale={6} onUpdate={(self) => self.lookAt(0, 0, 0)} />
+      <Suspense fallback={null}>
+      <Environment files="/hdri/venice.exr" resolution={256} frames={1}>
+        <Lightformer form="rect" intensity={2} color="#ffb27a" position={[-30, 6, 20]} scale={[40, 8, 1]} onUpdate={(self) => self.lookAt(0, 0, 0)} />
+        <Lightformer form="rect" intensity={0.8} color="#fff1e2" position={[0, 30, 0]} rotation-x={Math.PI / 2} scale={[60, 60, 1]} />
       </Environment>
+      {spec.smoke && <Smoke emitters={spec.smoke} />}
+      </Suspense>
 
       {[...plant.solids].map(([key, geo]) => (
         <mesh key={key} geometry={geo} material={materials[key]} castShadow={key !== "concrete" && key !== "asphalt"} receiveShadow />

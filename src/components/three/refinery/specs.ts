@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { PlantBuilder } from "./builder";
 import { buildPlant, FLARE_TIP, LABELS } from "./plant";
-import { buildComplex, COMPLEX_FLARES, COMPLEX_LABELS } from "./complex";
+import { buildComplex, COMPLEX_FLARES, COMPLEX_LABELS, COMPLEX_SMOKE } from "./complex";
 
 export type Built = ReturnType<PlantBuilder["build"]>;
 
@@ -21,6 +21,8 @@ export type SceneSpec = {
   ao: number;
   /** a tanker driving north along x from z0 to z1 */
   truck?: { x: number; z0: number; z1: number };
+  /** smoke from stacks, steam from cooling towers */
+  smoke?: { p: THREE.Vector3; kind: "smoke" | "steam" }[];
 };
 
 /** Pencil's planned miniature industrial learning facility. */
@@ -62,4 +64,5 @@ export const refineryComplex: SceneSpec = {
   sky: 1800,
   ao: 7,
   truck: { x: 17, z0: 560, z1: 95 },
+  smoke: COMPLEX_SMOKE,
 };
