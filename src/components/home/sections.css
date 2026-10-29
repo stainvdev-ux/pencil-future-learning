@@ -130,11 +130,29 @@
   padding: clamp(112px, 12vw, 180px) var(--margin) clamp(56px, 6vw, 88px);
 }
 
-.schools-intro p {
+.schools-intro-body {
   justify-self: end;
+  display: grid;
+  justify-items: start;
+  gap: 24px;
   max-width: 34rem;
   font-size: 1.25rem;
   line-height: 1.5;
+}
+
+.text-link {
+  display: inline-block;
+  margin-top: 20px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+  text-decoration-color: var(--orange);
+  transition: text-underline-offset 0.2s ease, color 0.2s ease;
+}
+
+.text-link:hover {
+  text-underline-offset: 3px;
 }
 
 .schools-stage {
@@ -438,9 +456,9 @@
   rotate: 6deg;
 }
 .print.is-c {
-  width: 17vw;
-  left: 5vw;
-  bottom: 12%;
+  width: 16vw;
+  left: 40vw;
+  bottom: 7%;
   rotate: 4deg;
 }
 .print.is-d {
@@ -860,7 +878,7 @@ html.has-cursor .print {
   }
 
   .approach-head p,
-  .schools-intro p,
+  .schools-intro-body,
   .admissions-head p {
     justify-self: start;
   }

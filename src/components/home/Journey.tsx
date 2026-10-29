@@ -14,6 +14,8 @@ const RefineryCanvas = dynamic(() => import("@/components/three/refinery/Refiner
 // cranes up to the site plan, and the refinery is built and lit around it.
 export default function Journey() {
   const root = useRef<HTMLElement>(null);
+  // Only one 3D scene lives at a time: this one unmounts when it is a screen away.
+  const near = useInView(root, "100% 0px");
   const visible = useInView(root);
 
   useGSAP(
@@ -61,7 +63,7 @@ export default function Journey() {
   return (
     <section ref={root} className="journey" aria-label="The Future Begins Here">
       <div className="journey-canvas" aria-hidden="true">
-        <RefineryCanvas spec={spec} active={visible} />
+        {near && <RefineryCanvas spec={spec} active={visible} />}
       </div>
 
       <div className="journey-caption is-hero" data-in="0" data-out="0.13">

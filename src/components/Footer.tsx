@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { contact, nav } from "@/content/site";
+import { contact, sitemap } from "@/content/site";
 
 export default function Footer() {
   return (
@@ -7,14 +7,11 @@ export default function Footer() {
       <div className="footer-logo" role="img" aria-label="Pencil Future Learning City, Calicut" />
       <nav aria-label="Footer">
         <ul>
-          {nav.map((l) => (
+          {sitemap.map((l) => (
             <li key={l.href}>
               <Link href={l.href}>{l.label}</Link>
             </li>
           ))}
-          <li>
-            <Link href="/contact">Contact</Link>
-          </li>
         </ul>
       </nav>
       <div className="footer-contact">

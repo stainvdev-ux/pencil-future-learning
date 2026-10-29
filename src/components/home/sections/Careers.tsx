@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import Link from "next/link";
 import { useGSAP } from "@/lib/gsap";
 import { sectionEntrances } from "@/lib/motion";
 import { careers, industry } from "@/content/site";
@@ -12,8 +13,8 @@ export default function Careers() {
   useGSAP(() => sectionEntrances(root.current!), { scope: root });
 
   const blocks = [
-    { title: "Industry Connect", lead: industry.headline, intro: industry.intro, label: "Proposed activities", items: industry.activities, note: industry.note },
-    { title: "Career Development", lead: null, intro: careers.intro, label: "Proposed services", items: careers.services, note: careers.note },
+    { title: "Industry Connect", href: "/industry-connect", lead: industry.headline, intro: industry.intro, label: "Proposed activities", items: industry.activities, note: industry.note },
+    { title: "Career Development", href: "/careers", lead: null, intro: careers.intro, label: "Proposed services", items: careers.services, note: careers.note },
   ];
 
   return (
@@ -39,6 +40,9 @@ export default function Careers() {
               ))}
             </ul>
             <small>{b.note}</small>
+            <Link href={b.href} className="text-link">
+              {b.title}
+            </Link>
           </article>
         ))}
       </div>

@@ -25,6 +25,20 @@ export const about = {
   intro:
     "Pencil Future Learning City is an emerging multidisciplinary learning destination in Calicut, Kerala, created around a simple idea: the strongest learning connects theory with experience.",
   approach: ["Explore the fundamentals.", "Apply the concepts.", "Develop the confidence", "to move forward."],
+  ecosystem:
+    "Our proposed ecosystem brings together engineering, industrial technology, digital innovation, construction, management and professional development.",
+  vision:
+    "To become a globally recognized learning ecosystem that transforms education through innovation, industry integration and experiential learning, empowering individuals to shape the future.", // taste-skill-ignore: quoted verbatim from the client copy
+  mission:
+    "To redefine professional education by connecting knowledge with practical experience, emerging technologies and real-world industry requirements.",
+  values: ["Innovation", "Excellence", "Practical Learning", "Integrity", "Inclusivity", "Global Outlook"],
+};
+
+export const programs = {
+  headline: "Find Your Direction.",
+  intro: "Explore career-relevant learning pathways across engineering, construction, AI, robotics, management and professional skills.",
+  cta: "Request Program Details",
+  disclaimer: "Programs shown are proposed unless explicitly marked as open for admissions.",
 };
 
 export const schoolsIntro = {
@@ -131,6 +145,8 @@ export const industry = {
     "Curriculum advisory sessions",
   ],
   note: "We do not claim formal institutional affiliation, accreditation or employer placement agreements without verification.",
+  collaborators:
+    "KEL, IRO and the KENZ business ecosystem may be described as proposed ecosystem collaborators, subject to formal confirmation of their respective roles.",
 };
 
 export const careers = {
@@ -182,6 +198,14 @@ export const contact = {
   headline: "Start a Conversation.",
   place: "Pencil Future Learning City | Calicut, Kerala, India.",
   body: "For program enquiries, collaborations or institutional information, contact our team using the official channels once published.",
+  tbc: "Contact details and precise campus address: To be confirmed.",
+  fields: { name: "Full name", email: "Email", phone: "Phone", interest: "Area of interest", message: "Message", consent: "I consent to be contacted." },
+};
+
+export const news = {
+  headline: "Ideas, People, Progress.",
+  intro:
+    "Follow campus development updates, program announcements, technical articles, guest sessions and community initiatives.",
 };
 
 export const nav = [
@@ -190,4 +214,14 @@ export const nav = [
   { href: "/programs", label: "Programs" },
   { href: "/campus", label: "Campus" },
   { href: "/admissions", label: "Admissions" },
+];
+
+/** Every page, for the footer. */
+export const sitemap = [
+  ...nav,
+  { href: "/experiential-learning", label: "Experiential Learning" },
+  { href: "/industry-connect", label: "Industry Connect" },
+  { href: "/careers", label: "Career Development" },
+  { href: "/news", label: "News & Insights" },
+  { href: "/contact", label: "Contact" },
 ];

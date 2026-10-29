@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { EffectComposer, Bloom, N8AO, Noise, ToneMapping, Vignette } from "@react-three/postprocessing";
-import { BlendFunction, ToneMappingMode, type VignetteEffect } from "postprocessing";
+import { EffectComposer, Bloom, N8AO, Noise, ToneMapping } from "@react-three/postprocessing";
+import { BlendFunction, ToneMappingMode, VignetteEffect } from "postprocessing";
 import Refinery from "./Refinery";
 import type { SceneSpec } from "./specs";
 import { SceneStateContext, refineryState, useSceneState, type SceneState } from "./state";
@@ -64,13 +64,16 @@ function Rig({ keys, truck }: { keys: SceneSpec["cameraKeys"]; truck?: SceneSpec
 // vignette that only closes in once the world is real.
 function Finish() {
   const S = useSceneState();
-  const vignette = useRef<VignetteEffect>(null);
+  // Built here rather than with <Vignette ref>: the wrapper serialises its props,
+  // and under React 19 a ref is a prop pointing at a live effect.
+  const vignette = useMemo(() => new VignetteEffect({ offset: 0.32, darkness: 0.12 }), []);
+  useEffect(() => () => vignette.dispose(), [vignette]);
   useFrame(() => {
-    if (vignette.current) vignette.current.darkness = 0.12 + 0.4 * S.real;
+    vignette.darkness = 0.12 + 0.4 * S.real;
   });
   return (
     <>
-      <Vignette ref={vignette} offset={0.32} darkness={0.12} />
+      <primitive object={vignette} dispose={null} />
       <Noise premultiply blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.12} />
     </>
   );

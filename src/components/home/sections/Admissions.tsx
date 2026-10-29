@@ -7,19 +7,25 @@ import { sectionEntrances } from "@/lib/motion";
 import { admissions } from "@/content/site";
 
 // Admissions: five steps as a strip of panels, dark to light; one is open at a time.
-export default function Admissions() {
+export default function Admissions({ withHead = true }: { withHead?: boolean }) {
   const root = useRef<HTMLElement>(null);
   const [open, setOpen] = useState(0);
   useGSAP(() => sectionEntrances(root.current!), { scope: root });
 
   return (
     <section ref={root} className="admissions" id="admissions" data-theme="light">
-      <div className="admissions-head">
-        <h2 data-split>{admissions.headline}</h2>
-        <p data-rise>
-          <span>{admissions.intro}</span>
-        </p>
-      </div>
+      {withHead ? (
+        <div className="admissions-head">
+          <h2 data-split>{admissions.headline}</h2>
+          <p data-rise>
+            <span>{admissions.intro}</span>
+          </p>
+        </div>
+      ) : (
+        <h2 className="admissions-steps-title" data-split>
+          Proposed admissions steps
+        </h2>
+      )}
 
       <ol className="steps" data-rise>
         {admissions.steps.map((step, i) => (

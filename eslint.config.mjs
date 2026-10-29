@@ -5,6 +5,12 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    // React Three Fiber scenes mutate three.js objects (materials, uniforms, lights)
+    // inside useFrame by design; React Compiler is not enabled in this project.
+    files: ["src/components/three/**/*.tsx"],
+    rules: { "react-hooks/immutability": "off" },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

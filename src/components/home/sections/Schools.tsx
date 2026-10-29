@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import Link from "next/link";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { prefersReducedMotion, sectionEntrances } from "@/lib/motion";
 import { PROGRAM_NOTE, schools, schoolsIntro } from "@/content/site";
@@ -68,9 +69,12 @@ export default function Schools() {
     <section ref={root} className="schools" id="schools" data-theme="light">
       <div className="schools-intro">
         <h2 data-split>{schoolsIntro.headline}</h2>
-        <p data-rise>
-          <span>{schoolsIntro.body}</span>
-        </p>
+        <div className="schools-intro-body" data-rise>
+          <p>{schoolsIntro.body}</p>
+          <Link href="/programs" className="button is-primary">
+            Explore Programs
+          </Link>
+        </div>
       </div>
       <div className="schools-stage">
         <div className="schools-track">

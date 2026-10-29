@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { gsap, Draggable, useGSAP } from "@/lib/gsap";
 import { prefersReducedMotion, sectionEntrances } from "@/lib/motion";
 import { campus } from "@/content/site";
@@ -65,6 +66,9 @@ export default function Campus() {
         <p>{campus.intro}</p>
         <p>{campus.spaces}</p>
         <small>Concept visualisations. These facilities are planned and are not yet operational.</small>
+        <Link href="/campus" className="text-link">
+          Campus &amp; Facilities
+        </Link>
       </div>
     </section>
   );
