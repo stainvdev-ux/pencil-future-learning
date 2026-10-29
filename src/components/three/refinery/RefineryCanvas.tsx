@@ -7,7 +7,7 @@ import { EffectComposer, Bloom, N8AO, Noise, ToneMapping, Vignette } from "@reac
 import { BlendFunction, ToneMappingMode, type VignetteEffect } from "postprocessing";
 import Refinery from "./Refinery";
 import type { SceneSpec } from "./specs";
-import { refineryState as S } from "./state";
+import { SceneStateContext, refineryState, useSceneState, type SceneState } from "./state";
 import { truckPosition } from "./truckPath";
 
 const smooth = (x: number) => x * x * (3 - 2 * x);
@@ -15,6 +15,7 @@ const smooth = (x: number) => x * x * (3 - 2 * x);
 // Camera path through the spec's keys: plan view (a site drawing) →
 // isometric → low three-quarter → hero, driven by refineryState.cam.
 function Rig({ keys, truck }: { keys: SceneSpec["cameraKeys"]; truck?: SceneSpec["truck"] }) {
+  const S = useSceneState();
   const tp = useMemo(() => new THREE.Vector3(), []);
   const sidePos = useMemo(() => new THREE.Vector3(), []);
   const sideTarget = useMemo(() => new THREE.Vector3(), []);
@@ -62,6 +63,7 @@ function Rig({ keys, truck }: { keys: SceneSpec["cameraKeys"]; truck?: SceneSpec
 // Lens finish: grain throughout (it reads as paper tooth on the drawing), and a
 // vignette that only closes in once the world is real.
 function Finish() {
+  const S = useSceneState();
   const vignette = useRef<VignetteEffect>(null);
   useFrame(() => {
     if (vignette.current) vignette.current.darkness = 0.12 + 0.4 * S.real;
@@ -74,26 +76,38 @@ function Finish() {
   );
 }
 
-export default function RefineryCanvas({ spec }: { spec: SceneSpec }) {
+export default function RefineryCanvas({
+  spec,
+  state = refineryState,
+  active = true,
+}: {
+  spec: SceneSpec;
+  state?: SceneState;
+  /** false stops rendering while the scene is off screen */
+  active?: boolean;
+}) {
   const start = spec.cameraKeys[0].p;
   return (
     <Canvas
       shadows
       dpr={[1, 2]}
       camera={{ fov: 35, near: 0.5, far: spec.sky * 2.5, position: start }}
+      frameloop={active ? "always" : "never"}
       gl={{ antialias: false, powerPreference: "high-performance", logarithmicDepthBuffer: false }}
       onCreated={({ gl }) => {
         gl.localClippingEnabled = true;
       }}
     >
-      <Refinery spec={spec} />
-      <Rig keys={spec.cameraKeys} truck={spec.truck} />
-      <EffectComposer multisampling={4}>
-        <N8AO aoRadius={spec.ao} intensity={2.2} distanceFalloff={1.2} halfRes />
-        <Bloom mipmapBlur intensity={0.9} luminanceThreshold={1} luminanceSmoothing={0.2} />
-        <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-        <Finish />
-      </EffectComposer>
+      <SceneStateContext.Provider value={state}>
+        <Refinery spec={spec} />
+        <Rig keys={spec.cameraKeys} truck={spec.truck} />
+        <EffectComposer multisampling={4}>
+          <N8AO aoRadius={spec.ao} intensity={2.2} distanceFalloff={1.2} halfRes />
+          <Bloom mipmapBlur intensity={0.9} luminanceThreshold={1} luminanceSmoothing={0.2} />
+          <ToneMapping mode={ToneMappingMode.NEUTRAL} />
+          <Finish />
+        </EffectComposer>
+      </SceneStateContext.Provider>
     </Canvas>
   );
 }

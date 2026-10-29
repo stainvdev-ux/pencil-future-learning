@@ -9,7 +9,7 @@ import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeome
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { PREDRAWN, type MatKey } from "./builder";
 import type { SceneSpec } from "./specs";
-import { refineryState as S } from "./state";
+import { useSceneState } from "./state";
 import Truck from "./Truck";
 import Smoke from "./Smoke";
 
@@ -242,6 +242,7 @@ function useSketch(positions: Float32Array, distances: Float32Array, clip: THREE
 }
 
 export default function Refinery({ spec }: { spec: SceneSpec }) {
+  const S = useSceneState();
   const plant = useMemo(() => spec.build(), [spec]);
   const size = useThree((s) => s.size);
   const scene = useThree((s) => s.scene);

@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { useFrame, useLoader } from "@react-three/fiber";
 import type { SceneSpec } from "./specs";
-import { refineryState as S } from "./state";
+import { useSceneState } from "./state";
 
 const PER_EMITTER = 28;
 
@@ -50,6 +50,7 @@ const fragment = /* glsl */ `
 `;
 
 export default function Smoke({ emitters }: { emitters: NonNullable<SceneSpec["smoke"]> }) {
+  const S = useSceneState();
   const map = useLoader(THREE.TextureLoader, "/textures/cloud.webp");
 
   const points = useMemo(() => {

@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import type { SceneSpec } from "./specs";
-import { refineryState as S } from "./state";
+import { useSceneState } from "./state";
 import { truckPosition } from "./truckPath";
 
 // A 10-wheel road tanker in brand colours, built facing -z (its direction of
@@ -90,6 +90,7 @@ function Wheel({ x, z, dual, m, wheels }: { x: number; z: number; dual?: boolean
 }
 
 export default function Truck({ route }: { route: NonNullable<SceneSpec["truck"]> }) {
+  const S = useSceneState();
   const m = useMaterials();
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);

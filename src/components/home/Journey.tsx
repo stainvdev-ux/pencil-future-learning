@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { refineryState as S } from "@/components/three/refinery/state";
+import { useInView } from "@/lib/useInView";
 import { refineryComplex as spec } from "@/components/three/refinery/specs";
 
 const RefineryCanvas = dynamic(() => import("@/components/three/refinery/RefineryCanvas"), { ssr: false });
@@ -13,6 +14,7 @@ const RefineryCanvas = dynamic(() => import("@/components/three/refinery/Refiner
 // cranes up to the site plan, and the refinery is built and lit around it.
 export default function Journey() {
   const root = useRef<HTMLElement>(null);
+  const visible = useInView(root);
 
   useGSAP(
     () => {
@@ -59,7 +61,7 @@ export default function Journey() {
   return (
     <section ref={root} className="journey" aria-label="The Future Begins Here">
       <div className="journey-canvas" aria-hidden="true">
-        <RefineryCanvas spec={spec} />
+        <RefineryCanvas spec={spec} active={visible} />
       </div>
 
       <div className="journey-caption is-hero" data-in="0" data-out="0.13">
